@@ -50,6 +50,10 @@ different port:
 SOUNDSLO_PORT=9000 ./scripts/run.sh
 ```
 
+Always use the local URL or `./scripts/run.sh`; `soundslo/static/index.html` is an application
+template, not a standalone webpage. If it is accidentally opened directly, it redirects to the
+default local URL automatically.
+
 History and WAVs live in `data/` and are intentionally excluded from Git. The upstream runtime
 and weights live in `.runtime/`, also excluded.
 
