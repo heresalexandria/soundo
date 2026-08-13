@@ -4,8 +4,12 @@ Soundslo is a private, local-first music workbench for **Stable Audio 3 Medium**
 Silicon. Describe an instrumental in ordinary language, queue one or more renders, and manage
 the resulting WAV files from a browser.
 
+**Powered by Stability AI.** Soundslo is an independent project and is not affiliated with,
+sponsored by, or endorsed by Stability AI.
+
 The app uses Stability AI's native MLX runtime rather than PyTorch. It is pinned to a tested
-upstream revision, stores its history in SQLite, and generates 44.1 kHz 16-bit stereo WAVs.
+runtime and model snapshot, stores its history in SQLite, and generates 44.1 kHz 16-bit stereo
+WAVs.
 
 ## What it includes
 
@@ -30,8 +34,9 @@ use about 10 MB per minute.
 
 The setup script installs `uv` if needed, installs Soundslo, checks out the official Stability AI
 runtime at revision `a0b57f5483c4588f827f3552b7d5c6ca2a9687be`, creates its isolated MLX
-environment, and downloads only the files Medium needs for text-to-audio. It deliberately skips
-the SAME-L encoder used only for audio-to-audio and inpainting.
+environment, and downloads model snapshot `6736003cb57d06b7b1fdc36fad31b2a3709e4774`.
+It downloads only the files Medium needs for text-to-audio and deliberately skips the SAME-L
+encoder used only for audio-to-audio and inpainting.
 
 The weights come from `stabilityai/stable-audio-3-optimized` on Hugging Face. A cached Hugging
 Face read token improves download reliability. If access is denied, sign in with `hf auth login`
@@ -83,6 +88,40 @@ uv run ruff check .
 
 The app is FastAPI plus plain HTML, CSS, and JavaScript—there is no Node build step. Its local API
 documentation is available at `/docs` while the server is running.
+
+## Licensing
+
+The original Soundslo source code in this repository is available under the [MIT License](LICENSE).
+That license does **not** relicense Stable Audio 3, T5Gemma, downloaded model weights, or other
+third-party components.
+
+The setup process downloads third-party materials rather than committing or redistributing them:
+
+- Stability AI's `stable-audio-3` runtime is downloaded from its official repository under its
+  MIT software license.
+- Stable Audio 3 model weights are downloaded separately under the
+  [Stability AI Community License](licenses/STABILITY_AI_COMMUNITY_LICENSE.md). Commercial users
+  must [register with Stability AI](https://stability.ai/community-license). If the user and its
+  affiliates exceed USD $1 million in aggregate annual revenue, commercial model use requires a
+  separate [Enterprise License](https://stability.ai/enterprise). Model use and outputs are also
+  subject to Stability AI's [Acceptable Use Policy](https://stability.ai/use-policy).
+- The downloaded text encoder contains T5Gemma weights governed by the
+  [Gemma Terms of Use](licenses/GEMMA_TERMS_OF_USE.md) and its incorporated prohibited-use policy.
+
+Required third-party attributions are retained in [NOTICE](NOTICE). As between users and
+Stability AI, users own generated outputs to the extent permitted by law, but they remain
+responsible for the outputs and their uses.
+
+Python packages resolved by `uv` are installed as separate dependencies and retain their own
+licenses; their code is not vendored into this repository. Anyone producing a future standalone
+application bundle should repeat the dependency audit and include all notices required by the
+versions actually bundled. Contributions are accepted under the terms in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+Only Soundslo's source code is offered as OSI-style open-source software. The complete installed
+application depends on model weights with use and revenue restrictions, so the full model stack
+should be described as an **open-source application using separately licensed open-weight
+models**, not as an entirely MIT-licensed or entirely open-source distribution.
 
 ## Current scope and natural next steps
 

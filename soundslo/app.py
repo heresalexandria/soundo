@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from soundslo import __version__
-from soundslo.config import SA3_REVISION, Settings
+from soundslo.config import SA3_REVISION, SA3_WEIGHTS_REVISION, Settings
 from soundslo.database import TERMINAL_STATUSES, Database
 from soundslo.generator import GenerationRunner, JobManager
 
@@ -95,7 +95,8 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
         return {
             "app_version": __version__,
             "model": "Stable Audio 3 Medium",
-            "model_revision": SA3_REVISION[:12],
+            "model_revision": SA3_WEIGHTS_REVISION[:12],
+            "runtime_revision": SA3_REVISION[:12],
             "runtime_installed": runner.is_ready(),
             "weights_ready": all(weights.values()),
             "weights": weights,
@@ -123,7 +124,7 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
                 "seed": seed,
                 "steps": payload.steps,
                 "cfg_scale": payload.cfg_scale,
-                "model_revision": SA3_REVISION,
+                "model_revision": SA3_WEIGHTS_REVISION,
             }
         )
         jobs.submit(generation_id)

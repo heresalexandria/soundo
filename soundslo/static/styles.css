@@ -104,6 +104,13 @@ main { width: min(1120px, calc(100% - 40px)); margin: 0 auto 100px; }
 
 .hero h1 em { color: var(--muted); font-style: normal; }
 .lede { color: var(--muted); font-size: clamp(15px, 2vw, 19px); margin: 28px 0 0; }
+.model-attribution {
+  color: var(--faint);
+  font: 10px "DM Mono", ui-monospace, monospace;
+  letter-spacing: .08em;
+  margin: 13px 0 0;
+  text-transform: uppercase;
+}
 
 .panel {
   border: 1px solid var(--line);

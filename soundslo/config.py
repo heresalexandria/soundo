@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SA3_REVISION = "a0b57f5483c4588f827f3552b7d5c6ca2a9687be"
+SA3_WEIGHTS_REVISION = "6736003cb57d06b7b1fdc36fad31b2a3709e4774"
 
 
 @dataclass(frozen=True)
