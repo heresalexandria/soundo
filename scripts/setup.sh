@@ -5,7 +5,6 @@ SOUNDSLO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOUNDSLO_RUNTIME="$SOUNDSLO_ROOT/.runtime/stable-audio-3"
 SOUNDSLO_MLX="$SOUNDSLO_RUNTIME/optimized/mlx"
 SOUNDSLO_SA3_REVISION="a0b57f5483c4588f827f3552b7d5c6ca2a9687be"
-SOUNDSLO_WEIGHTS_REVISION="6736003cb57d06b7b1fdc36fad31b2a3709e4774"
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "Installing uv with the official installer…"
@@ -39,8 +38,7 @@ echo "Installing the Apple Silicon MLX runtime…"
 echo "Fetching the text-to-instrumental model files…"
 echo "The model weights are governed by the Stability AI Community License, not MIT."
 echo "T5Gemma is governed by the Gemma Terms of Use. See NOTICE and licenses/."
-"$SOUNDSLO_MLX/.venv/bin/python" "$SOUNDSLO_ROOT/scripts/prefetch_weights.py" \
-  "$SOUNDSLO_MLX" --revision "$SOUNDSLO_WEIGHTS_REVISION"
+"$SOUNDSLO_ROOT/scripts/install_model.sh" medium
 
 echo
 echo "Soundslo is ready. Start it with:"

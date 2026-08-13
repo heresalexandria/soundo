@@ -17,6 +17,8 @@ class Settings:
     generations_dir: Path
     sa3_root: Path
     static_dir: Path
+    stability_api_key: str | None = None
+    stability_api_base_url: str = "https://api.stability.ai"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -34,6 +36,10 @@ class Settings:
             generations_dir=data_dir / "generations",
             sa3_root=sa3_root,
             static_dir=root / "soundslo" / "static",
+            stability_api_key=os.environ.get("STABILITY_API_KEY") or None,
+            stability_api_base_url=os.environ.get(
+                "STABILITY_API_BASE_URL", "https://api.stability.ai"
+            ).rstrip("/"),
         )
 
     @property

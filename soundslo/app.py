@@ -12,12 +12,13 @@ from typing import Annotated
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from soundslo import __version__
 from soundslo.config import SA3_REVISION, SA3_WEIGHTS_REVISION, Settings
 from soundslo.database import TERMINAL_STATUSES, Database
 from soundslo.generator import GenerationRunner, JobManager
+from soundslo.models import LARGE_API_ID, MEDIUM_ID, ModelInstaller, get_model, model_catalog
 
 DEFAULT_NEGATIVE_PROMPT = "vocals, singing, speech, spoken word, lyrics, choir"
 REQUIRED_WEIGHTS = (
@@ -31,7 +32,8 @@ class GenerationCreate(BaseModel):
     prompt: str = Field(min_length=3, max_length=2000)
     name: str | None = Field(default=None, max_length=120)
     negative_prompt: str = Field(default=DEFAULT_NEGATIVE_PROMPT, max_length=1000)
-    duration_seconds: float = Field(default=30, ge=5, le=380)
+    model: str = Field(default=MEDIUM_ID)
+    duration_seconds: float = Field(default=30, ge=1, le=380)
     seed: int | None = Field(default=None, ge=0, le=2**32 - 1)
     steps: int = Field(default=8, ge=1, le=32)
     cfg_scale: float = Field(default=3.0, ge=1, le=10)
@@ -45,6 +47,25 @@ class GenerationCreate(BaseModel):
     @classmethod
     def strip_name(cls, value: str | None) -> str | None:
         return value.strip() if value and value.strip() else None
+
+    @model_validator(mode="after")
+    def validate_model_limits(self) -> GenerationCreate:
+        try:
+            spec = get_model(self.model)
+        except ValueError as error:
+            raise ValueError(str(error)) from error
+        if self.duration_seconds > spec.max_duration_seconds:
+            raise ValueError(
+                f"{spec.name} supports at most {spec.max_duration_seconds} seconds."
+            )
+        if self.steps > spec.max_steps:
+            raise ValueError(f"{spec.name} supports at most {spec.max_steps} sampling steps.")
+        if spec.deployment == "cloud" and self.seed is not None:
+            if self.seed == 0:
+                raise ValueError("Seed 0 is random in the Stability API; leave seed blank instead.")
+            if self.seed > 2**32 - 2:
+                raise ValueError(f"{spec.name} supports seeds up to {2**32 - 2}.")
+        return self
 
 
 class GenerationRename(BaseModel):
@@ -67,6 +88,7 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
     database.fail_interrupted()
     runner = GenerationRunner(settings)
     jobs = JobManager(database, settings, runner)
+    model_installer = ModelInstaller(settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -80,6 +102,7 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
     app.state.settings = settings
     app.state.database = database
     app.state.jobs = jobs
+    app.state.model_installer = model_installer
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -105,6 +128,32 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
             "data_directory": str(settings.data_dir),
         }
 
+    @app.get("/api/models")
+    def list_models() -> dict:
+        usage = shutil.disk_usage(settings.root)
+        models = model_catalog(settings)
+        for model in models:
+            model["installation"] = model_installer.status(model["id"])
+        return {
+            "models": models,
+            "free_disk_bytes": usage.free,
+            "hugging_face_repository": "stabilityai/stable-audio-3-optimized",
+            "large_local_available": False,
+        }
+
+    @app.post("/api/models/{model_id}/install", status_code=202)
+    def install_model(model_id: str, request: Request) -> dict:
+        content_type = request.headers.get("content-type", "").partition(";")[0]
+        if content_type != "application/json":
+            raise HTTPException(status_code=415, detail="Model installation requires JSON.")
+        try:
+            get_model(model_id)
+            return model_installer.start(model_id)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except RuntimeError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
     @app.get("/api/generations")
     def list_generations(limit: Annotated[int, Query(ge=1, le=500)] = 100) -> list[dict]:
         return database.list(limit=limit)
@@ -112,7 +161,12 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
     @app.post("/api/generations", status_code=202)
     def create_generation(payload: GenerationCreate) -> dict:
         generation_id = str(uuid.uuid4())
-        seed = payload.seed if payload.seed is not None else secrets.randbelow(2**32)
+        if payload.seed is not None:
+            seed = payload.seed
+        elif payload.model == LARGE_API_ID:
+            seed = secrets.randbelow(2**32 - 2) + 1
+        else:
+            seed = secrets.randbelow(2**32)
         name = payload.name or suggested_name(payload.prompt)
         generation = database.create(
             {
@@ -124,7 +178,8 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
                 "seed": seed,
                 "steps": payload.steps,
                 "cfg_scale": payload.cfg_scale,
-                "model_revision": SA3_WEIGHTS_REVISION,
+                "model": payload.model,
+                "model_revision": get_model(payload.model).revision,
             }
         )
         jobs.submit(generation_id)
@@ -152,6 +207,7 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
             seed=original["seed"],
             steps=original["steps"],
             cfg_scale=original["cfg_scale"],
+            model=original["model"],
         )
         return create_generation(payload)
 

@@ -12,8 +12,11 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+import httpx
+
 from soundslo.config import Settings
-from soundslo.database import Database
+from soundslo.database import TERMINAL_STATUSES, Database
+from soundslo.models import LARGE_API_ID, MEDIUM_ID, get_model, model_is_ready
 
 ANSI_RE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 STEP_RE = re.compile(r"step\s+(\d+)\s*/\s*(\d+)", re.IGNORECASE)
@@ -24,10 +27,13 @@ class GenerationRunner:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def is_ready(self) -> bool:
-        return self.settings.sa3_executable.is_file() and self.settings.runtime_python.is_file()
+    def is_ready(self, model_id: str = MEDIUM_ID) -> bool:
+        return model_is_ready(self.settings, get_model(model_id))
 
     def command_for(self, generation: dict, output_path: Path) -> list[str]:
+        spec = get_model(generation.get("model", MEDIUM_ID))
+        if spec.deployment != "local" or not spec.dit or not spec.decoder:
+            raise ValueError(f"{spec.name} does not use the local MLX command.")
         command = [
             str(self.settings.sa3_executable),
             "--prompt",
@@ -35,9 +41,9 @@ class GenerationRunner:
             "--negative-prompt",
             generation["negative_prompt"],
             "--dit",
-            "medium",
+            spec.dit,
             "--decoder",
-            "same-l",
+            spec.decoder,
             "--dit-dtype",
             "fp16",
             "--seconds",
@@ -62,9 +68,36 @@ class GenerationRunner:
         on_output: Callable[[str], None],
         on_progress: Callable[[float, str], None],
         on_process: Callable[[subprocess.Popen[bytes] | None], None],
+        is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[int, str]:
-        if not self.is_ready():
-            return 127, "Stable Audio 3 is not installed. Run ./scripts/setup.sh first."
+        model_id = generation.get("model", MEDIUM_ID)
+        spec = get_model(model_id)
+        if not self.is_ready(model_id):
+            if spec.deployment == "cloud":
+                return 127, (
+                    "Stable Audio 3 Large requires STABILITY_API_KEY. "
+                    "Set it before starting Soundslo."
+                )
+            return 127, f"{spec.name} is not installed. Open Settings or run its install script."
+        if model_id == LARGE_API_ID:
+            return self._run_stability_api(
+                generation,
+                output_path,
+                on_output,
+                on_progress,
+                on_process,
+                is_cancelled or (lambda: False),
+            )
+        return self._run_local(generation, output_path, on_output, on_progress, on_process)
+
+    def _run_local(
+        self,
+        generation: dict,
+        output_path: Path,
+        on_output: Callable[[str], None],
+        on_progress: Callable[[float, str], None],
+        on_process: Callable[[subprocess.Popen[bytes] | None], None],
+    ) -> tuple[int, str]:
 
         master_fd, slave_fd = pty.openpty()
         process: subprocess.Popen[bytes] | None = None
@@ -122,6 +155,78 @@ class GenerationRunner:
             if slave_fd >= 0:
                 os.close(slave_fd)
             os.close(master_fd)
+
+    def _run_stability_api(
+        self,
+        generation: dict,
+        output_path: Path,
+        on_output: Callable[[str], None],
+        on_progress: Callable[[float, str], None],
+        on_process: Callable[[subprocess.Popen[bytes] | None], None],
+        is_cancelled: Callable[[], bool],
+    ) -> tuple[int, str]:
+        key = self.settings.stability_api_key
+        if not key:
+            return 127, "STABILITY_API_KEY is not configured."
+        headers = {
+            "authorization": f"Bearer {key}",
+            "accept": "audio/*",
+            "stability-client-id": "soundslo",
+        }
+        spec = get_model(generation.get("model", LARGE_API_ID))
+        data = {
+            "prompt": generation["prompt"],
+            "model": spec.api_model or "stable-audio-3",
+            "duration": str(generation["duration_seconds"]),
+            "seed": str(min(generation["seed"], 2**32 - 2)),
+            "steps": str(min(generation["steps"], 8)),
+            "cfg_scale": str(generation["cfg_scale"]),
+            "output_format": "wav",
+        }
+        base_url = self.settings.stability_api_base_url
+        on_process(None)
+        on_progress(4, "Sending the prompt to Stability AI")
+        on_output("Submitting Stable Audio 3 Large generation to the Stability API.")
+        started = time.monotonic()
+        try:
+            with httpx.Client(timeout=httpx.Timeout(60, connect=20)) as client:
+                response = client.post(
+                    f"{base_url}/v2beta/audio/stable-audio/text-to-audio",
+                    headers=headers,
+                    files={"none": ("", b"")},
+                    data=data,
+                )
+                if response.status_code != 202:
+                    return response.status_code, _http_error(response)
+                generation_id = response.json().get("id")
+                if not generation_id:
+                    return 502, "Stability API accepted the request but returned no generation ID."
+                on_output(f"Stability API generation accepted: {generation_id}")
+                on_progress(12, "Queued in the Stability cloud")
+
+                while not is_cancelled():
+                    result = client.get(
+                        f"{base_url}/v2beta/audio/results/{generation_id}",
+                        headers=headers,
+                    )
+                    if result.status_code == 200:
+                        output_path.parent.mkdir(parents=True, exist_ok=True)
+                        output_path.write_bytes(result.content)
+                        on_output("Stable Audio 3 Large WAV downloaded to this Mac.")
+                        on_progress(99, "Saving the WAV file")
+                        return 0, "Stable Audio 3 Large generation completed."
+                    if result.status_code != 202:
+                        return result.status_code, _http_error(result)
+                    elapsed = time.monotonic() - started
+                    estimated = min(
+                        90.0,
+                        14 + elapsed / max(generation["duration_seconds"], 30) * 45,
+                    )
+                    on_progress(estimated, "Generating with Stable Audio 3 Large")
+                    time.sleep(5)
+                return 130, "Generation cancelled locally. The hosted API job may still complete."
+        except httpx.HTTPError as error:
+            return 503, f"Could not reach the Stability API: {error}"
 
 
 def progress_from_line(line: str) -> tuple[float, str] | None:
@@ -241,6 +346,9 @@ class JobManager:
                 del log_lines[: max(1, len(log_lines) // 4)]
 
         def on_progress(progress: float, stage: str) -> None:
+            current = self.database.get(generation_id)
+            if current is None or current["status"] in TERMINAL_STATUSES:
+                return
             now = time.monotonic()
             if now - last_persist[0] >= 0.15 or progress >= 95:
                 self.database.update(generation_id, progress=progress, stage=stage)
@@ -252,7 +360,13 @@ class JobManager:
 
         try:
             return_code, raw_log = self.runner.run(
-                generation, output_path, on_output, on_progress, on_process
+                generation,
+                output_path,
+                on_output,
+                on_progress,
+                on_process,
+                lambda: self._stop.is_set()
+                or (self.database.get(generation_id) or {}).get("status") == "cancelled",
             )
             elapsed = time.monotonic() - started
             current = self.database.get(generation_id)
@@ -277,7 +391,7 @@ class JobManager:
                     generation_id,
                     status="failed",
                     stage="Generation failed",
-                    error=message or f"Stable Audio 3 exited with code {return_code}.",
+                    error=message or f"The model runner exited with code {return_code}.",
                     elapsed_seconds=elapsed,
                     log=raw_log,
                 )
@@ -316,3 +430,18 @@ def _last_useful_line(log: str) -> str:
         if "error" in line.lower() or "traceback" in line.lower():
             return line[-1000:]
     return lines[-1][-1000:] if lines else ""
+
+
+def _http_error(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        detail = response.text.strip()
+    else:
+        if isinstance(payload, dict):
+            errors = payload.get("errors") or payload.get("message") or payload.get("name")
+            detail = "; ".join(errors) if isinstance(errors, list) else str(errors or payload)
+        else:
+            detail = str(payload)
+    detail = detail[:1000] if detail else response.reason_phrase
+    return f"Stability API {response.status_code}: {detail}"

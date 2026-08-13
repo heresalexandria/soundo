@@ -1,7 +1,7 @@
 [project]
 name = "soundslo"
 version = "0.1.0"
-description = "A local-first Stable Audio 3 Medium workbench for Apple Silicon"
+description = "A model-aware Stable Audio 3 music workbench for Apple Silicon"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE", "licenses/*"]
@@ -9,13 +9,13 @@ requires-python = ">=3.11"
 keywords = ["audio", "generative-ai", "mlx", "music", "stable-audio"]
 dependencies = [
   "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
   "pydantic>=2.11,<3",
   "uvicorn[standard]>=0.35,<1",
 ]
 
 [dependency-groups]
 dev = [
-  "httpx>=0.28,<1",
   "pytest>=8.4,<9",
   "ruff>=0.12,<1",
 ]
