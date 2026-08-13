@@ -11,3 +11,7 @@ htmlcov/
 data/
 dist/
 
+# Local identity setup: never commit
+AGENTS.md
+use-heresalexandria.sh
+use_heresalexandria.sh
