@@ -1,11 +1,20 @@
-# Soundslo
+<div align="center">
+  <img src="soundslo/static/soundslo-icon.svg" alt="Soundslo icon" width="104" height="104" />
+  <h1>Soundslo</h1>
+  <p><em>Generate private, six-minute instrumental soundtracks from text on your Apple Silicon Mac.</em></p>
+  <p><strong>Powered by Stability AI.</strong></p>
+</div>
 
-Soundslo is a private, local-first music workbench for **Stable Audio 3 Medium** on Apple
-Silicon. Describe an instrumental in ordinary language, queue one or more renders, and manage
-the resulting WAV files from a browser.
+<p align="center">
+  <img src="docs/assets/soundslo-app.jpg" alt="Soundslo's local music generation workbench" width="1100" />
+</p>
 
-**Powered by Stability AI.** Soundslo is an independent project and is not affiliated with,
-sponsored by, or endorsed by Stability AI.
+Soundslo is a private, local-first music workbench for **Stable Audio 3 Medium**. Describe an
+instrumental in ordinary language, queue one or more renders, and manage the resulting WAV files
+from a browser.
+
+Soundslo is an independent project and is not affiliated with, sponsored by, or endorsed by
+Stability AI.
 
 The app uses Stability AI's native MLX runtime rather than PyTorch. It is pinned to a tested
 runtime and model snapshot, stores its history in SQLite, and generates 44.1 kHz 16-bit stereo
@@ -22,15 +31,28 @@ WAVs.
   prompt reuse, runtime logs, and deletion of both the record and WAV
 - A loopback-only web server; prompts and audio are not sent to a service
 
-## First-time setup
+## Quick start
 
-Requirements: an Apple Silicon Mac, macOS, internet access for setup, Git, and roughly 7 GB of
-free disk space for the runtime, Python environment, and text-to-audio weights. Generated WAVs
-use about 10 MB per minute.
+On an Apple Silicon Mac, clone or download this repository, open Terminal in its folder, and run:
 
 ```bash
-./scripts/setup.sh
+bash scripts/setup.sh && bash scripts/run.sh
 ```
+
+That is the entire setup. The script installs everything into this folder, downloads the model,
+and opens Soundslo at [http://127.0.0.1:8733](http://127.0.0.1:8733). First setup needs internet
+access, Git, and roughly 7 GB of free disk space. Generated WAVs use about 10 MB per minute.
+
+After the first setup, start Soundslo with:
+
+```bash
+bash scripts/run.sh
+```
+
+Stop it with `Ctrl-C` in Terminal.
+
+<details>
+<summary>Setup details and troubleshooting</summary>
 
 The setup script installs `uv` if needed, installs Soundslo, checks out the official Stability AI
 runtime at revision `a0b57f5483c4588f827f3552b7d5c6ca2a9687be`, creates its isolated MLX
@@ -42,25 +64,20 @@ The weights come from `stabilityai/stable-audio-3-optimized` on Hugging Face. A 
 Face read token improves download reliability. If access is denied, sign in with `hf auth login`
 and make sure your account can access the model repository, then rerun setup.
 
-## Run
-
-```bash
-./scripts/run.sh
-```
-
-Soundslo opens at [http://127.0.0.1:8733](http://127.0.0.1:8733). Stop it with `Ctrl-C`. To use a
-different port:
+To use a different port:
 
 ```bash
 SOUNDSLO_PORT=9000 ./scripts/run.sh
 ```
 
-Always use the local URL or `./scripts/run.sh`; `soundslo/static/index.html` is an application
+Always use the local URL or `bash scripts/run.sh`; `soundslo/static/index.html` is an application
 template, not a standalone webpage. If it is accidentally opened directly, it redirects to the
 default local URL automatically.
 
 History and WAVs live in `data/` and are intentionally excluded from Git. The upstream runtime
 and weights live in `.runtime/`, also excluded.
+
+</details>
 
 ## Prompting tips
 

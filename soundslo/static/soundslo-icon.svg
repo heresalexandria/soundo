@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">Soundslo</title>
+  <desc id="description">A lime audio waveform on a charcoal rounded square</desc>
+  <defs>
+    <linearGradient id="background" x1="18" y1="14" x2="108" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1b1b18"/>
+      <stop offset="1" stop-color="#0c0c0b"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#background)" stroke="#30302b" stroke-width="2"/>
+  <circle cx="91" cy="34" r="22" fill="#e7ff5f" opacity=".045"/>
+  <g fill="#e7ff5f" filter="url(#glow)">
+    <rect x="33" y="52" width="7" height="24" rx="3.5"/>
+    <rect x="47" y="34" width="7" height="60" rx="3.5"/>
+    <rect x="61" y="43" width="7" height="42" rx="3.5"/>
+    <rect x="75" y="26" width="7" height="76" rx="3.5"/>
+    <rect x="89" y="48" width="7" height="32" rx="3.5"/>
+  </g>
+</svg>
