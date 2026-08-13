@@ -21,6 +21,10 @@ def test_generation_crud_and_audio(tmp_path: Path) -> None:
     app = create_app(settings, start_jobs=False)
 
     with TestClient(app) as client:
+        favicon = client.get("/favicon.ico")
+        assert favicon.status_code == 200
+        assert favicon.headers["content-type"] == "image/png"
+
         created = client.post(
             "/api/generations",
             json={

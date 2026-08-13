@@ -261,6 +261,10 @@ def create_app(settings: Settings | None = None, *, start_jobs: bool = True) -> 
         generation = require_generation(database, generation_id)
         return {"log": generation.get("log") or "No runtime log yet."}
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> FileResponse:
+        return FileResponse(settings.static_dir / "favicon-32.png", media_type="image/png")
+
     app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
     @app.get("/{path:path}", include_in_schema=False)

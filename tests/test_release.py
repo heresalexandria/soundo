@@ -12,6 +12,9 @@ def test_release_contains_required_license_and_notice_files() -> None:
         ROOT / "docs" / "assets" / "soundslo-app.jpg",
         ROOT / "licenses" / "STABILITY_AI_COMMUNITY_LICENSE.md",
         ROOT / "licenses" / "GEMMA_TERMS_OF_USE.md",
+        ROOT / "soundslo" / "static" / "apple-touch-icon.png",
+        ROOT / "soundslo" / "static" / "favicon-32.png",
+        ROOT / "soundslo" / "static" / "favicon.svg",
         ROOT / "soundslo" / "static" / "soundslo-icon.svg",
         ROOT / "scripts" / "install_model.sh",
         ROOT / "scripts" / "run_with_large.sh",
@@ -26,7 +29,11 @@ def test_release_contains_required_license_and_notice_files() -> None:
 def test_third_party_revisions_and_ui_attribution_are_pinned() -> None:
     assert len(SA3_REVISION) == 40
     assert len(SA3_WEIGHTS_REVISION) == 40
-    assert "Powered by Stability AI" in (ROOT / "soundslo" / "static" / "index.html").read_text()
+    index = (ROOT / "soundslo" / "static" / "index.html").read_text()
+    assert "Powered by Stability AI" in index
+    assert 'href="/favicon.ico"' in index
+    assert 'href="/static/favicon.svg"' in index
+    assert 'href="/static/apple-touch-icon.png"' in index
 
 
 def test_readme_starts_with_branding_and_has_a_one_command_setup() -> None:
