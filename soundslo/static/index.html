@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10100f" />
+    <title>Soundslo — Local music workbench</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <div class="noise"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Soundslo home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>soundslo</span>
+      </a>
+      <div class="system-pill" id="system-pill">
+        <span class="status-dot"></span>
+        <span id="system-label">Checking local model…</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">STABLE AUDIO 3 MEDIUM · ON YOUR MAC</p>
+        <h1>Describe a world.<br /><em>Hear it take shape.</em></h1>
+        <p class="lede">Instrumental scores generated privately on Apple Silicon.</p>
+      </section>
+
+      <section class="composer panel" aria-labelledby="composer-title">
+        <form id="generation-form">
+          <div class="form-heading">
+            <div>
+              <p class="section-number">01 / COMPOSE</p>
+              <h2 id="composer-title">What should it sound like?</h2>
+            </div>
+            <button class="ghost-button" type="button" id="surprise-button">Inspire me</button>
+          </div>
+
+          <label class="prompt-wrap">
+            <span class="sr-only">Music prompt</span>
+            <textarea id="prompt" name="prompt" rows="4" maxlength="2000" required
+              placeholder="A widescreen 1960s science-fiction orchestral score, eerie strings, brass swells, analog electronic pulses, slow and ominous…"></textarea>
+            <span class="char-count"><span id="char-count">0</span> / 2000</span>
+          </label>
+
+          <div class="controls-grid">
+            <label class="field duration-field">
+              <span>Duration</span>
+              <div class="duration-control">
+                <input id="duration" name="duration" type="range" min="5" max="380" value="30" step="5" />
+                <output id="duration-output" for="duration">0:30</output>
+              </div>
+              <div class="preset-row" aria-label="Duration presets">
+                <button type="button" data-duration="30" class="active">30s</button>
+                <button type="button" data-duration="60">1m</button>
+                <button type="button" data-duration="120">2m</button>
+                <button type="button" data-duration="180">3m</button>
+                <button type="button" data-duration="360">6m</button>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Seed <small>optional</small></span>
+              <div class="seed-control">
+                <input id="seed" name="seed" inputmode="numeric" type="number" min="0" max="4294967295" placeholder="Random" />
+                <button type="button" id="random-seed" title="Choose a random seed" aria-label="Choose a random seed">↻</button>
+              </div>
+            </label>
+          </div>
+
+          <details class="advanced">
+            <summary>Fine controls <span>Guidance, steps & negative prompt</span></summary>
+            <div class="advanced-grid">
+              <label class="field">
+                <span>Guidance <output id="guidance-output">3.0</output></span>
+                <input id="guidance" type="range" min="1" max="10" value="3" step="0.5" />
+                <small>Higher values follow your prompt more strictly, but take roughly twice as long above 1.</small>
+              </label>
+              <label class="field">
+                <span>Sampling steps <output id="steps-output">8</output></span>
+                <input id="steps" type="range" min="4" max="16" value="8" step="1" />
+                <small>8 is the model's intended balance. More is exploratory, not always better.</small>
+              </label>
+              <label class="field negative-field">
+                <span>Negative prompt</span>
+                <input id="negative-prompt" type="text" value="vocals, singing, speech, spoken word, lyrics, choir" maxlength="1000" />
+                <small>Used when guidance is above 1. The default steers away from voices.</small>
+              </label>
+            </div>
+          </details>
+
+          <div class="submit-row">
+            <div class="privacy-note"><span>⌁</span> Audio never leaves this Mac</div>
+            <button class="primary-button" id="generate-button" type="submit">
+              <span>Generate music</span><i aria-hidden="true">→</i>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="library" aria-labelledby="library-title">
+        <div class="library-heading">
+          <div>
+            <p class="section-number">02 / LIBRARY</p>
+            <h2 id="library-title">Your generations</h2>
+          </div>
+          <div class="library-tools">
+            <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search" /></label>
+            <button class="icon-button" id="refresh-button" title="Refresh history" aria-label="Refresh history">↻</button>
+          </div>
+        </div>
+        <div id="generation-list" class="generation-list" aria-live="polite"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <span class="empty-wave" aria-hidden="true">∿ ∿ ∿</span>
+          <h3>Your first soundtrack starts above.</h3>
+          <p>Try a genre, era, mood, instrumentation, tempo, and arrangement.</p>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="rename-dialog">
+      <form method="dialog" id="rename-form">
+        <p class="section-number">RENAME GENERATION</p>
+        <h2>Give this piece a title.</h2>
+        <input id="rename-input" maxlength="120" required autocomplete="off" />
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel" type="button" data-close-dialog>Cancel</button>
+          <button class="primary-button compact" value="save" type="submit">Save title</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="log-dialog" class="log-dialog">
+      <div>
+        <p class="section-number">RUNTIME LOG</p>
+        <h2>Generation details</h2>
+        <pre id="log-output"></pre>
+        <div class="dialog-actions"><button class="primary-button compact" data-close-dialog>Close</button></div>
+      </div>
+    </dialog>
+
+    <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+  </body>
+</html>
