@@ -9,9 +9,11 @@
   <img src="docs/assets/soundslo-app.jpg" alt="Soundslo's local music generation workbench" width="1100" />
 </p>
 
-Soundslo is a private, local-first music workbench for **Stable Audio 3 Medium**. Describe an
-instrumental in ordinary language, queue one or more renders, and manage the resulting WAV files
-from a browser.
+Soundslo is a model-aware, local-first music workbench for the **Stable Audio 3** family. Describe
+an instrumental in ordinary language, choose the quality/privacy/storage tradeoff you want, queue
+one or more renders, and manage the resulting WAV files from a browser. Medium remains the default
+and runs entirely on your Mac; Small Music is an optional lighter local model, and Large is an
+explicitly opt-in hosted model.
 
 Soundslo is an independent project and is not affiliated with, sponsored by, or endorsed by
 Stability AI.
@@ -23,13 +25,17 @@ WAVs.
 ## What it includes
 
 - Text-to-music with arbitrary aesthetic, era, mood, instrumentation, and arrangement prompts
-- 5–380 second renders (six minutes is 360 seconds)
-- Stable Audio 3 Medium with the SAME-L decoder, FP16 DiT, and memory-conscious model unloading
+- Exact 1–380 second renders, entered as minutes and seconds with an optional fine-tuning slider
+- A collapsed model manager with install status, selection, model size, duration, quality, privacy,
+  credential, and cost tradeoffs
+- Local Stable Audio 3 Small Music and Medium through native MLX, plus optional hosted Large
+- Medium with the SAME-L decoder, FP16 DiT, and memory-conscious model unloading
 - Negative prompting for vocals, configurable guidance, steps, duration, and reproducible seeds
 - A durable, one-at-a-time generation queue with real stage and sampling-step progress
 - Persistent history, in-browser playback, download, reveal in Finder, rename, retry, cancel,
   prompt reuse, runtime logs, and deletion of both the record and WAV
-- A loopback-only web server; prompts and audio are not sent to a service
+- A loopback-only web server; Small and Medium prompts/audio stay local, while Large clearly marks
+  that its prompt is sent to Stability AI and its result is downloaded back to this Mac
 
 ## Quick start
 
@@ -79,6 +85,64 @@ and weights live in `.runtime/`, also excluded.
 
 </details>
 
+## Models, storage, and credentials
+
+The model manager is collapsed under **Settings** in the app so these decisions remain available
+without crowding the composer. Soundslo reports what is actually installed and never sends an API
+key to the browser.
+
+| Model | Where it runs | Parameters | Maximum | Weight download | Best reason to use it |
+|---|---|---:|---:|---:|---|
+| [Small Music](https://huggingface.co/stabilityai/stable-audio-3-small) | This Mac | 433M | 2:00 | about 1.7 GB | Lowest local storage and memory use; faster, but less coherent than Medium |
+| [Medium](https://huggingface.co/stabilityai/stable-audio-3-medium) | This Mac | 1.4B | 6:20 | about 5.2 GB | Best quality with publicly downloadable local weights |
+| [Large](https://platform.stability.ai/docs/api-reference#tag/Stable-Audio-3.0) | Stability AI API | 2.7B | 6:20 | none | Highest musicality; requires internet, an API key, and 26 credits per successful generation |
+
+The local download totals are the pinned MLX DiT, decoder, and shared T5Gemma files. Hugging Face
+caches each file once, so installing Small after Medium adds about 1.1 GB rather than another full
+1.7 GB. Keep additional free space for the runtime, cache metadata, temporary downloads, and WAVs.
+
+Stability AI's [official model overview](https://github.com/Stability-AI/stable-audio-3#models)
+lists Large as API-only and unsupported by the public runtime. In other words, Medium is already
+the “bigger local model”; there is no public Large Hugging Face checkpoint that Soundslo can honestly
+download. Enterprise self-hosting is a separate arrangement with Stability AI.
+
+### Install or repair a local model
+
+Medium is installed by Quick start. The Settings panel can install another available local model,
+or the same downloads can be run directly:
+
+```bash
+bash scripts/install_model.sh small-music
+bash scripts/install_model.sh medium
+```
+
+The downloads use `stabilityai/stable-audio-3-optimized` at Soundslo's pinned revision. If Hugging
+Face requests credentials, accept the repository's license terms in your Hugging Face account and
+sign in, then retry:
+
+```bash
+.runtime/stable-audio-3/optimized/mlx/.venv/bin/hf auth login
+```
+
+Tokens are handled by Hugging Face's own credential store and are never saved in this repository.
+Running `bash scripts/install_model.sh large` deliberately exits with an explanation instead of
+silently downloading a different or mislabeled model.
+
+### Opt in to hosted Large
+
+Create a Stability AI API key and start Soundslo with the hidden-input helper:
+
+```bash
+bash scripts/run_with_large.sh
+```
+
+The script keeps the key only in the server process environment. It does not write the key to
+disk or shell history. Once the app reports **API ready**, open Settings and select Large. Large
+text-to-audio is asynchronous, costs 26 credits per successful generation, and supports 1–380
+seconds at 44.1 kHz stereo. The API does not expose a separate negative prompt, so include
+“instrumental, no vocals” in the main prompt. Cancelling in Soundslo stops local polling, but it may
+not cancel or refund a hosted job that Stability AI has already accepted.
+
 ## Prompting tips
 
 A useful prompt usually covers five things: genre or reference era, instrumentation, mood,
@@ -91,9 +155,10 @@ Example:
 > swells, subtle analog electronic pulses, slow 72 BPM, mysterious and spacious, gradual build,
 > instrumental, no melody competing with narration
 
-The default guidance value of 3 enables the negative prompt and gives stronger text alignment,
-but it is roughly twice as expensive as guidance 1. Eight sampling steps is the upstream model's
-intended setting; more steps are not guaranteed to improve quality.
+For local models, the default guidance value of 3 enables the negative prompt and gives stronger
+text alignment, but it is roughly twice as expensive as guidance 1. Eight sampling steps is the
+upstream model's intended setting; more steps are not guaranteed to improve quality. Hosted Large
+supports 4–8 steps and no separate negative-prompt field.
 
 ## Development
 
@@ -112,7 +177,8 @@ The original Soundslo source code in this repository is available under the [MIT
 That license does **not** relicense Stable Audio 3, T5Gemma, downloaded model weights, or other
 third-party components.
 
-The setup process downloads third-party materials rather than committing or redistributing them:
+The setup and model-install processes download third-party materials rather than committing or
+redistributing them:
 
 - Stability AI's `stable-audio-3` runtime is downloaded from its official repository under its
   MIT software license.
@@ -124,6 +190,8 @@ The setup process downloads third-party materials rather than committing or redi
   subject to Stability AI's [Acceptable Use Policy](https://stability.ai/use-policy).
 - The downloaded text encoder contains T5Gemma weights governed by the
   [Gemma Terms of Use](licenses/GEMMA_TERMS_OF_USE.md) and its incorporated prohibited-use policy.
+- Optional hosted Large use is also governed by the Stability AI API terms, pricing, and policies
+  attached to the user's own account. Soundslo does not include, proxy, or redistribute API access.
 
 Required third-party attributions are retained in [NOTICE](NOTICE). As between users and
 Stability AI, users own generated outputs to the extent permitted by law, but they remain
@@ -142,8 +210,8 @@ models**, not as an entirely MIT-licensed or entirely open-source distribution.
 
 ## Current scope and natural next steps
 
-This first version intentionally focuses on testing Medium's raw text-to-instrumental quality.
-The downloaded decoder can render finished audio, but audio-to-audio variation and inpainting
-also need the skipped SAME-L encoder. Logical follow-ons are timeline-aware multi-section prompt
-planning, continuation/overlap assembly for longer scores, loudness normalization, stems or MIDI
-companions, video-duration fitting, and LoRA style adapters trained on licensed material.
+Soundslo currently focuses on raw text-to-instrumental quality across the available Stable Audio 3
+music tiers. The downloaded decoders can render finished audio, but audio-to-audio variation and
+inpainting also need the skipped encoders. Logical follow-ons are timeline-aware multi-section
+prompt planning, continuation/overlap assembly for longer scores, loudness normalization, stems or
+MIDI companions, video-duration fitting, and LoRA style adapters trained on licensed material.

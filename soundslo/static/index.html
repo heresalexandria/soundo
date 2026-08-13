@@ -29,11 +29,39 @@
 
     <main>
       <section class="hero">
-        <p class="eyebrow">STABLE AUDIO 3 MEDIUM · ON YOUR MAC</p>
+        <p class="eyebrow" id="model-eyebrow">STABLE AUDIO 3 MEDIUM · ON YOUR MAC</p>
         <h1>Describe a world.<br /><em>Hear it take shape.</em></h1>
-        <p class="lede">Instrumental scores generated privately on Apple Silicon.</p>
+        <p class="lede" id="model-lede">Instrumental scores generated privately on Apple Silicon.</p>
         <p class="model-attribution">Powered by Stability AI</p>
       </section>
+
+      <details class="settings-panel panel" id="settings-panel">
+        <summary>
+          <span class="settings-summary-title"><i aria-hidden="true">•••</i> Settings</span>
+          <span class="settings-summary-value">
+            <strong id="settings-model-name">Stable Audio 3 Medium</strong>
+            <small>Model, storage & privacy</small>
+          </span>
+        </summary>
+        <div class="settings-content">
+          <div class="settings-heading">
+            <div>
+              <p class="section-number">MODEL MANAGER</p>
+              <h2>Choose your engine.</h2>
+            </div>
+            <p>Compare quality, footprint, duration, credentials, and where generation happens.</p>
+          </div>
+          <div class="model-grid" id="model-grid" aria-live="polite"></div>
+          <div class="large-disclosure">
+            <strong>About Large</strong>
+            <p>
+              Medium is the largest model with public local weights. Stability AI distributes
+              Large only through its hosted API or enterprise self-hosting, so there is no
+              Hugging Face download to install on this Mac.
+            </p>
+          </div>
+        </div>
+      </details>
 
       <section class="composer panel" aria-labelledby="composer-title">
         <form id="generation-form">
@@ -53,20 +81,29 @@
           </label>
 
           <div class="controls-grid">
-            <label class="field duration-field">
-              <span>Duration</span>
-              <div class="duration-control">
-                <input id="duration" name="duration" type="range" min="5" max="380" value="30" step="5" />
-                <output id="duration-output" for="duration">0:30</output>
+            <div class="field duration-field">
+              <span>Duration <small id="duration-range-label">1 second–6:20</small></span>
+              <div class="duration-entry">
+                <label>
+                  <span>Minutes</span>
+                  <input id="duration-minutes" inputmode="numeric" type="number" min="0" max="6" value="0" />
+                </label>
+                <span class="duration-separator" aria-hidden="true">:</span>
+                <label>
+                  <span>Seconds</span>
+                  <input id="duration-seconds" inputmode="numeric" type="number" min="0" max="59" value="30" />
+                </label>
+                <output id="duration-output">0:30</output>
               </div>
-              <div class="preset-row" aria-label="Duration presets">
-                <button type="button" data-duration="30" class="active">30s</button>
-                <button type="button" data-duration="60">1m</button>
-                <button type="button" data-duration="120">2m</button>
-                <button type="button" data-duration="180">3m</button>
-                <button type="button" data-duration="360">6m</button>
-              </div>
-            </label>
+              <div class="preset-row" id="duration-presets" aria-label="Duration presets"></div>
+              <details class="duration-slider-panel">
+                <summary>Use slider</summary>
+                <div class="duration-control">
+                  <input id="duration" name="duration" type="range" min="1" max="380" value="30" step="1" />
+                </div>
+              </details>
+              <p class="duration-note" id="duration-note">Medium supports exact lengths up to 6:20.</p>
+            </div>
 
             <label class="field">
               <span>Seed <small>optional</small></span>
@@ -90,16 +127,16 @@
                 <input id="steps" type="range" min="4" max="16" value="8" step="1" />
                 <small>8 is the model's intended balance. More is exploratory, not always better.</small>
               </label>
-              <label class="field negative-field">
+              <label class="field negative-field" id="negative-field">
                 <span>Negative prompt</span>
                 <input id="negative-prompt" type="text" value="vocals, singing, speech, spoken word, lyrics, choir" maxlength="1000" />
-                <small>Used when guidance is above 1. The default steers away from voices.</small>
+                <small id="negative-prompt-note">Used when guidance is above 1. The default steers away from voices.</small>
               </label>
             </div>
           </details>
 
           <div class="submit-row">
-            <div class="privacy-note"><span>⌁</span> Audio never leaves this Mac</div>
+            <div class="privacy-note" id="privacy-note"><span>⌁</span> Audio never leaves this Mac</div>
             <button class="primary-button" id="generate-button" type="submit">
               <span>Generate music</span><i aria-hidden="true">→</i>
             </button>
